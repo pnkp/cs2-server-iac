@@ -1,0 +1,115 @@
+name: CS2 Server CDK
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'CDK Action'
+        required: true
+        type: choice
+        default: 'deploy'
+        options:
+          - deploy
+          - destroy
+          - diff
+          - synth
+      server_name:
+        description: 'Server Hostname'
+        required: false
+        type: string
+        default: 'CS2 Dedicated Server'
+      start_map:
+        description: 'Starting Map'
+        required: false
+        type: string
+        default: 'de_dust2'
+      game_mode:
+        description: 'Game Mode (0=Casual, 1=Competitive, 2=Wingman)'
+        required: false
+        type: choice
+        default: '1'
+        options:
+          - '0'
+          - '1'
+          - '2'
+      game_type:
+        description: 'Game Type (0=Classic)'
+        required: false
+        type: choice
+        default: '0'
+        options:
+          - '0'
+      max_players:
+        description: 'Max Players'
+        required: false
+        type: string
+        default: '10'
+      instance_type:
+        description: 'EC2 Instance Type'
+        required: false
+        type: string
+        default: 'c6i.xlarge'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  cdk:
+    name: CDK ${{ inputs.action }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'eu-central-1' }}
+
+      - name: Run CDK Action
+        env:
+          GSLT_TOKEN: ${{ secrets.CS2_GSLT_TOKEN }}
+          SERVER_PASSWORD: ${{ secrets.CS2_SERVER_PASSWORD }}
+          RCON_PASSWORD: ${{ secrets.CS2_RCON_PASSWORD }}
+        run: |
+          EXTRA_ARGS=""
+          [ -n "${{ inputs.server_name }}" ] && EXTRA_ARGS="$EXTRA_ARGS -c serverName='${{ inputs.server_name }}'"
+          [ -n "${{ inputs.start_map }}" ] && EXTRA_ARGS="$EXTRA_ARGS -c startMap='${{ inputs.start_map }}'"
+          [ -n "${{ inputs.game_mode }}" ] && EXTRA_ARGS="$EXTRA_ARGS -c gameMode='${{ inputs.game_mode }}'"
+          [ -n "${{ inputs.game_type }}" ] && EXTRA_ARGS="$EXTRA_ARGS -c gameType='${{ inputs.game_type }}'"
+          [ -n "${{ inputs.max_players }}" ] && EXTRA_ARGS="$EXTRA_ARGS -c maxPlayers='${{ inputs.max_players }}'"
+          [ -n "${{ inputs.instance_type }}" ] && EXTRA_ARGS="$EXTRA_ARGS -c instanceType='${{ inputs.instance_type }}'"
+          [ -n "$GSLT_TOKEN" ] && EXTRA_ARGS="$EXTRA_ARGS -c gsltToken='$GSLT_TOKEN'"
+          [ -n "$SERVER_PASSWORD" ] && EXTRA_ARGS="$EXTRA_ARGS -c serverPassword='$SERVER_PASSWORD'"
+          [ -n "$RCON_PASSWORD" ] && EXTRA_ARGS="$EXTRA_ARGS -c rconPassword='$RCON_PASSWORD'"
+
+          case "${{ inputs.action }}" in
+            deploy)
+              npx cdk deploy --require-approval never $EXTRA_ARGS
+              ;;
+            destroy)
+              npx cdk destroy --force $EXTRA_ARGS
+              ;;
+            diff)
+              npx cdk diff $EXTRA_ARGS
+              ;;
+            synth)
+              npx cdk synth $EXTRA_ARGS
+              ;;
+            *)
+              echo "Unknown action: ${{ inputs.action }}"
+              exit 1
+              ;;
+          esac

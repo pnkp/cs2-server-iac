@@ -1,0 +1,36 @@
+{
+  "app": "npx ts-node --prefer-ts-exts bin/cs2-server.ts",
+  "watch": {
+    "include": [
+      "**"
+    ],
+    "exclude": [
+      "README.md",
+      "cdk*.json",
+      "**/*.d.ts",
+      "**/*.js",
+      "tsconfig.json",
+      "package*.json",
+      "node_modules",
+      "test"
+    ]
+  },
+  "context": {
+    "serverName": "CS2 Dedicated Server",
+    "serverPassword": "",
+    "rconPassword": "ChangeMeCS2Rcon123!",
+    "gsltToken": "",
+    "startMap": "de_dust2",
+    "maxPlayers": "10",
+    "gameMode": "1",
+    "gameType": "0",
+    "instanceType": "c6i.xlarge",
+    "volumeSizeGb": 80,
+    "@aws-cdk/aws-lambda:recognizeLayerVersion": true,
+    "@aws-cdk/core:checkSecretUsage": true,
+    "@aws-cdk/core:target-partitions": [
+      "aws",
+      "aws-cn"
+    ]
+  }
+}
